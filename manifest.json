@@ -15,7 +15,11 @@
 		"128": "images/icon128.png"
 	},
 	"background": {
-		"scripts": ["background.js"],
+		"scripts": [
+            "background/utility.js",
+            "background/storage.js",
+            "background/init.js",
+            "background/sync.js"],
     "persistent": false
 	},
   "browser_action": {
