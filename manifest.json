@@ -16,10 +16,10 @@
 	},
 	"background": {
 		"scripts": [
-            "js/utility.js",
             "js/storage.js",
-            "js/init.js",
-            "js/sync.js"],
+            "js/folder.js",
+            "js/sync.js",
+            "js/init.js"],
     "persistent": false
 	},
   "browser_action": {
