@@ -17,19 +17,72 @@ var folder = (function () {
     });
   };
 
-  // Pass a boolean to the callback indicating whether the recursive contents of
-  // both bookmarks folders are equal.
-  public.compare = function (lhs, rhs, callback) {
-    // Not implemented yet.
-    callback(false);
+  // Comparator to sort lists of bookmark nodes first by folder or bookmark,
+  // then by title. Bookmarks with the same title are sorted by url. Folders
+  // with the same title are sorted by number of children.
+  private.bookmark_comparator = function (lhs, rhs) {
+    if ('url' in lhs !== 'url' in rhs)
+      return 'url' in lhs ? -1 : 1;
+    if (lhs.title != rhs.title)
+      return lhs.title < rhs.title ? -1 : 1;
+    if ('url' in lhs && lhs.url != rhs.url)
+      return lhs.url < rhs.url ? -1 : 1;
+    if ('children' in lhs && lhs.children.length != rhs.children.length)
+      return lhs.children.length < rhs.children.length ? -1 : 1;
+    return 0;
   };
 
-  // Try to find an equal folder to needle within the tree of container. The
-  // folder will be passed to the callback or null if non was found.
-  public.find_within = function (needle, container, callback) {
-    chrome.bookmarks.getChildren(container.id, function (children) {
-      // Not implemented yet.
-      callback(null);
+  // Compare two bookmark trees and return a boolean indicating if the contained
+  // folders and bookmarks have the same titles and urls.
+  public.compare = function (lhs_tree, rhs_tree, callback) {
+    // Breadth first search of both trees
+    var queue = [[lhs_tree, rhs_tree]];
+    while (queue.length) {
+      var pair = queue.shift();
+      var lhs = pair[0];
+      var rhs = pair[1];
+      var one_is_node = 'url' in lhs || 'url' in rhs;
+      // Compare current pair of nodes
+      if (lhs.title !== rhs.title && lhs.id !== lhs_tree.id)
+        return false;
+      if (one_is_node && (lhs.url || null) !== (rhs.url || null))
+        return false;
+      if (one_is_node && (lhs.url || null) === (rhs.url || null))
+        continue;
+      if (lhs.children.length !== rhs.children.length)
+        return false;
+      // If both are folders, we must traverse their content
+      var lhs_children = lhs.children.slice();
+      var rhs_children = rhs.children.slice();
+      lhs_children = lhs_children.sort(private.bookmark_comparator);
+      rhs_children = rhs_children.sort(private.bookmark_comparator);
+      lhs_children.forEach(function (child, index) {
+        queue.push([child, rhs_children[index]]);
+      });
+    }
+    return true;
+  };
+
+  // Try to find a sub tree inside container that is equal to the target tree.
+  // The folder that is equivalent to the target will be passed to the callback
+  // or null if not found.
+  public.find_within = function (target_id, container_id, callback) {
+    chrome.bookmarks.getSubTree(target_id, function (target_tree) {
+      chrome.bookmarks.getSubTree(container_id, function (container_tree) {
+        var target = target_tree[0];
+        var found = null;
+        // Breadth first search in the container
+        var queue = container_tree[0].children;
+        while (queue.length) {
+          var current = queue.shift();
+          if (public.compare(target, current)) {
+            found = current;
+            break;
+          }
+          queue.push.apply(queue, current.children);
+        }
+        callback(found);
+      });
     });
   };
 
@@ -61,7 +114,7 @@ var folder = (function () {
           storage.set('folder-active', active.id,
               function () { callback(active); });
         else
-          private.create_active(callback);
+          callback(null); // private.create_active(callback);
       });
     });
   };
@@ -70,11 +123,7 @@ var folder = (function () {
   // bar'. Pass the folder to the provided callback or null if not found.
   private.find_active = function (callback) {
     storage.get('folder-bar', 'folder-other', function (bar, other) {
-      chrome.bookmarks.get([bar, other], function (bookmarks) {
-        var bar = bookmarks[0];
-        var other = bookmarks[1];
-        public.find_within(bar, other, callback);
-      });
+      public.find_within(bar, other, callback);
     });
   };
 
