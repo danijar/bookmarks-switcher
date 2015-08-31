@@ -17,6 +17,65 @@ var folder = (function () {
     });
   };
 
+  // Remove the content of the folder given as id.
+  public.clear = function (folder, callback) {
+    // Recursively iterate over a list of nodes to delete them.
+    function recursive(nodes, index, callback) {
+      if (index >= nodes.length) {
+        callback();
+        return;
+      }
+      chrome.bookmarks.removeTree(nodes[index].id, function () {
+        recursive(nodes, index + 1, callback);
+      });
+    }
+    // Fetch children to delete them with the helper defined above
+    chrome.bookmarks.getChildren(folder, function (children) {
+      recursive(children, 0, callback);
+    });
+  };
+
+  private.clone = function (bookmark, parent_id) {
+    return {
+      parentId: parent_id,
+      title: bookmark.title,
+      url: bookmark.url || null
+    };
+  };
+
+  // Copy the content structure of source to dest, both given as ids.
+  public.copy = function (source, dest, callback) {
+    // Recursively copy over the tree structure
+    var queue = [];
+    function recursive() {
+      // Call user callback when breadth first search finished
+      if (!queue.length) {
+        callback();
+        return;
+      }
+      // Pop next node to visit
+      var pair = queue.shift();
+      var source = pair[0], dest = pair[1];
+      // Copy current children
+      source.children.forEach(function (child) {
+        var properties = private.clone(child, dest.id);
+        chrome.bookmarks.create(properties, function (clone) {
+          // Enqueue folders to visit later
+          if (!('url' in clone))
+            queue.push([child, clone]);
+          recursive();
+        });
+      });
+    }
+    // Query and start with source and destination roots
+    chrome.bookmarks.getSubTree(source, function (source_tree) {
+      chrome.bookmarks.get(dest, function (dest_root) {
+        queue = [[source_tree[0], dest_root[0]]];
+        recursive();
+      });
+    });
+  };
+
   // Comparator to sort lists of bookmark nodes first by folder or bookmark,
   // then by title. Bookmarks with the same title are sorted by url. Folders
   // with the same title are sorted by number of children.
@@ -110,11 +169,14 @@ var folder = (function () {
         return callback(active);
       // Try to find active folder based on content
       private.find_active(function (active) {
-        if (active)
+        if (active) {
           storage.set('folder-active', active.id,
               function () { callback(active); });
-        else
-          callback(null); // private.create_active(callback);
+          console.log('Found existing active folder', active.title);
+        } else {
+          private.create_active(callback);
+          console.log('Created initial active folder');
+        }
       });
     });
   };
@@ -137,6 +199,7 @@ var folder = (function () {
       }, function (active) {
         storage.set('folder-active', active.id,
             function () { callback(active); });
+        sync.force();
       });
     });
   };

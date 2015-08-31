@@ -54,7 +54,7 @@ var storage = (function () {
 
   // Log all key value pairs currently in the storage to the console.
   public.log = function (label) {
-    label = label || 'Storage: ';
+    label = label || 'Storage';
     chrome.storage.local.get(null, function (items) {
       console.log(label, items);
     });
