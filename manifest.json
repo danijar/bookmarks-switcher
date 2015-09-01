@@ -1,27 +1,27 @@
 {
-	"manifest_version": 2,
-	"name": "Bookmarks Switcher",
-	"version": "1.0.0",
-	"short_name": "Bookmarks Switcher",
-	"description": "Select which bookmarks folder to show as the bookmarks bar. This allows for multiple bookmark bars and helps you focus on one project at a time.",
-	"author": "Danijar Hafner",
-	"permissions": [
-	 	"bookmarks",
-    "storage"
-	],
-	"icons": {
-		"16": "img/icon16.png",
-		"48": "img/icon48.png",
-		"128": "img/icon128.png"
-	},
-	"background": {
-		"scripts": [
+    "manifest_version": 2,
+    "name": "Bookmarks Switcher",
+    "version": "1.0.0",
+    "short_name": "Bookmarks Switcher",
+    "description": "Select which bookmarks folder to show as the bookmarks bar. This allows for multiple bookmark bars and helps you focus on one project at a time.",
+    "author": "Danijar Hafner",
+    "permissions": [
+        "bookmarks",
+        "storage"
+    ],
+    "icons": {
+        "16": "img/icon16.png",
+        "48": "img/icon48.png",
+        "128": "img/icon128.png"
+    },
+    "background": {
+        "scripts": [
             "js/storage.js",
             "js/folder.js",
             "js/sync.js",
             "js/init.js"],
     "persistent": false
-	},
+    },
   "browser_action": {
     "default_title": "Bookmarks Switcher",
     "default_popup": "popup.html",

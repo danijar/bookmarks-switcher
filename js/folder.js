@@ -54,23 +54,27 @@ var folder = (function () {
         return;
       }
       // Pop next node to visit
-      var pair = queue.shift();
-      var source = pair[0], dest = pair[1];
-      // Copy current children
-      source.children.forEach(function (child) {
-        var properties = private.clone(child, dest.id);
-        chrome.bookmarks.create(properties, function (clone) {
-          // Enqueue folders to visit later
-          if (!('url' in clone))
-            queue.push([child, clone]);
-          recursive();
-        });
+      var node = queue.shift();
+      // Clone the current node
+      var properties = private.clone(node, node.destination);
+      chrome.bookmarks.create(properties, function (clone) {
+        // Enqueue children
+        if (!('url' in node)) {
+          node.children.forEach(function (child) {
+            child.destination = clone.id;
+            queue.push(child);
+          });
+        }
+        recursive();
       });
     }
     // Query and start with source and destination roots
     chrome.bookmarks.getSubTree(source, function (source_tree) {
       chrome.bookmarks.get(dest, function (dest_root) {
-        queue = [[source_tree[0], dest_root[0]]];
+        source_tree[0].children.forEach(function (child) {
+          child.destination = dest_root[0].id;
+          queue.push(child);
+        });
         recursive();
       });
     });
@@ -125,7 +129,7 @@ var folder = (function () {
   // Try to find a sub tree inside container that is equal to the target tree.
   // The folder that is equivalent to the target will be passed to the callback
   // or null if not found.
-  public.find_within = function (target_id, container_id, callback) {
+  public.find_subtree = function (target_id, container_id, callback) {
     chrome.bookmarks.getSubTree(target_id, function (target_tree) {
       chrome.bookmarks.getSubTree(container_id, function (container_tree) {
         var target = target_tree[0];
@@ -142,6 +146,24 @@ var folder = (function () {
         }
         callback(found);
       });
+    });
+  };
+
+  // Pass the child node object to the callback if it is found under the
+  // specified parent and null otherwise.
+  public.find_child = function (child_id, parent_id, callback) {
+    chrome.bookmarks.getSubTree(parent_id, function (parent_tree) {
+      var queue = [parent_tree[0]];
+      while (queue.length) {
+        var node = queue.shift();
+        if (node.id === child_id) {
+          callback(node);
+          return;
+        } else {
+          queue.push.apply(queue, node.children);
+        }
+      }
+      callback(null);
     });
   };
 
@@ -185,7 +207,7 @@ var folder = (function () {
   // bar'. Pass the folder to the provided callback or null if not found.
   private.find_active = function (callback) {
     storage.get('folder-bar', 'folder-other', function (bar, other) {
-      public.find_within(bar, other, callback);
+      public.find_subtree(bar, other, callback);
     });
   };
 
@@ -199,7 +221,7 @@ var folder = (function () {
       }, function (active) {
         storage.set('folder-active', active.id,
             function () { callback(active); });
-        sync.force();
+        sync.update_active();
       });
     });
   };
