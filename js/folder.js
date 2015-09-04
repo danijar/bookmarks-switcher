@@ -10,9 +10,11 @@ var folder = (function () {
   // folder-active: Id of the currently selected folder to sync with the
   //                bookmarks bar
   public.init = function (callback) {
+    console.log('Init folder');
     private.ensure_base(function (bar, other) {
       private.ensure_active(function (active) {
-        callback(bar, other, active);
+        if (callback)
+          callback(bar, other, active);
       });
     });
   };
@@ -197,7 +199,7 @@ var folder = (function () {
           console.log('Found existing active folder', active.title);
         } else {
           private.create_active(callback);
-          console.log('Created initial active folder');
+          console.log('Created a new active folder.');
         }
       });
     });
@@ -217,7 +219,7 @@ var folder = (function () {
     storage.get('folder-other', function (other) {
       chrome.bookmarks.create({
         parentId: other,
-        title: 'Default bookmarks bar'
+        title: 'Active folder'
       }, function (active) {
         storage.set('folder-active', active.id,
             function () { callback(active); });

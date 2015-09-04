@@ -2,8 +2,12 @@ var sync = (function () {
   var public = {};
   var private = {};
 
-  public.init = function () {
+  public.init = function (callback) {
     private.register();
+    folder.init(function () {
+      if (callback)
+        callback();
+    });
   };
 
   // Update the content of target to match the content of target. The current
@@ -11,7 +15,8 @@ var sync = (function () {
   // tree from source over every time.
   public.update_running = false;
   public.update = function (target, source, callback) {
-    public.update_running = true;
+   public.update_running = true;
+   console.log('update', target, source);
     folder.clear(target, function () {
       folder.copy(source, target, function () {
         if (callback)
@@ -42,21 +47,25 @@ var sync = (function () {
 
   private.handle_change = function (id) {
     // Do not listen to modifications triggered by this handler itself.
-    if (public.update_running)
+    if (public.update_running) {
+      console.log('ignore event');
       return;
-    storage.get('folder-bar', 'folder-active', function (bar, active) {
-      folder.find_child(id, bar, function (in_bar) {
-        if (in_bar) {
-          public.update_active();
-        } else {
-          folder.find_child(id, active, function (in_active) {
-            if (in_active) {
-              public.update_bar();
-            }
-          });
-        }
+    }
+    setTimeout(function () {
+      storage.get('folder-bar', 'folder-active', function (bar, active) {
+        folder.find_child(id, bar, function (in_bar) {
+          if (in_bar) {
+            public.update_active();
+          } else {
+            folder.find_child(id, active, function (in_active) {
+              if (in_active) {
+                public.update_bar();
+              }
+            });
+          }
+        });
       });
-    });
+    }, 500);
   };
 
   // Register to the change events of the bookmarks tree.
@@ -65,7 +74,14 @@ var sync = (function () {
       private.handle_change(id);
     });
     chrome.bookmarks.onRemoved.addListener(function (id, info) {
-      private.handle_change(id);
+      // storage.get('folder-active', function (active) {
+        // if (active == id) {
+          // Active folder was deleted, so find or create a new one
+          // folder.init();
+        // } else {
+          private.handle_change(id);
+        // }
+      // });
     });
     chrome.bookmarks.onChanged.addListener(function (id, info) {
       private.handle_change(id);

@@ -4,9 +4,8 @@ var init = (function () {
 
   public.init = function () {
     storage.clear();
-    folder.init(function (bar, other, active) {
+    sync.init(function () {
       storage.log();
-      sync.init();
     });
   };
 
